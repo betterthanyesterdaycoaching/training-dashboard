@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>AI Sports Dashboard</title>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<!-- Supabase JS client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--bg:#f8fafc;--card:#fff;--text:#0f172a;--muted:#475569;--line:#e2e8f0;--blue:#2563eb;--blue2:#1d4ed8}
 *{box-sizing:border-box}
@@ -43,19 +45,31 @@ button.primary{padding:12px 18px;border:0;border-radius:10px;background:var(--bl
 button.primary:hover{background:var(--blue2)}
 .pill{display:inline-block;padding:5px 10px;border-radius:999px;font-size:12px;background:#dbeafe;color:#1d4ed8}
 /* Auth gate */
-#auth-gate{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f172a}
+#auth-gate{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f172a;color:#e5e7eb}
+#auth-card{background:#1e293b;border-radius:16px;padding:24px;width:100%;max-width:360px;box-shadow:0 10px 25px rgba(15,23,42,.4)}
+#auth-card h2{margin:0 0 8px;font-size:22px}
+#auth-card p{margin:0 0 16px;font-size:14px;color:#9ca3af}
+.auth-btn{width:100%;margin-top:10px;padding:10px 14px;border-radius:10px;border:1px solid #374151;background:#111827;color:#e5e7eb;font-size:14px;cursor:pointer;text-align:left}
+.auth-btn:hover{background:#030712}
+.auth-note{margin-top:14px;font-size:12px;color:#9ca3af}
 #app-wrapper{display:none}
 @media(max-width:980px){.app{grid-template-columns:1fr}.grid{grid-template-columns:1fr}.span-3,.span-4,.span-6,.span-8,.span-12{grid-column:span 1}}
 </style>
 </head>
 <body>
 
-<!-- AUTH GATE: shown until Clerk confirms user is signed in -->
+<!-- AUTH GATE -->
 <div id="auth-gate">
-  <div id="sign-in-mount"></div>
+  <div id="auth-card">
+    <h2>Sign in to AI Coach</h2>
+    <p>Use Google or GitHub to access your private training dashboard.</p>
+    <button class="auth-btn" id="googleSignInBtn">Continue with Google</button>
+    <button class="auth-btn" id="githubSignInBtn">Continue with GitHub</button>
+    <div class="auth-note">Only accounts you allow in Supabase will be able to sign in.</div>
+  </div>
 </div>
 
-<!-- APP: hidden until signed in -->
+<!-- APP WRAPPER -->
 <div id="app-wrapper">
 <div class="app">
 <aside class="sidebar">
@@ -70,7 +84,7 @@ button.primary:hover{background:var(--blue2)}
 <main class="content">
   <div class="topbar">
     <div class="title"><h1>Performance Dashboard</h1><p>Supabase metrics with Gemini coach chat.</p></div>
-    <div class="pill" id="userEmail">Loading...</div>
+    <div class="pill" id="userEmail">Signed in</div>
   </div>
 
   <section id="overview" class="section active">
@@ -131,193 +145,142 @@ button.primary:hover{background:var(--blue2)}
 </div>
 </div>
 
-<!-- Clerk: replace CLERK_PUBLISHABLE_KEY with your actual key from clerk.com -->
-<script
-  async
-  crossorigin="anonymous"
-  data-clerk-publishable-key="pk_test_dW5pcXVlLXBlbmd1aW4tMjguY2xlcmsuYWNjb3VudHMuZGV2JA"
-  src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
-  type="text/javascript"
-></script>
-
 <script>
-window.addEventListener('load', function() {
-  if (typeof Clerk === 'undefined') {
-    // Clerk failed to load — show app anyway for local dev
-    showApp('developer@local');
-    return;
-  }
-  Clerk.load().then(function() {
-    if (Clerk.user) {
-      var email = Clerk.user.primaryEmailAddress ? Clerk.user.primaryEmailAddress.emailAddress : 'Signed in';
-      showApp(email);
-    } else {
-      Clerk.mountSignIn(document.getElementById('sign-in-mount'));
-      Clerk.addListener(function(state) {
-        if (state.user) {
-          var email = state.user.primaryEmailAddress ? state.user.primaryEmailAddress.emailAddress : 'Signed in';
-          showApp(email);
-        }
-      });
-    }
-  });
-});
-
-function showApp(email) {
-  document.getElementById('auth-gate').style.display = 'none';
-  document.getElementById('app-wrapper').style.display = 'block';
-  var el = document.getElementById('userEmail');
-  if (el) { el.innerText = email; }
-  initDashboard();
-}
-
-document.getElementById('signOutBtn').addEventListener('click', function() {
-  if (typeof Clerk !== 'undefined' && Clerk.signOut) {
-    Clerk.signOut().then(function() { location.reload(); });
-  }
-});
-
-function initDashboard() {
 (function() {
-  var buttons = document.querySelectorAll('.nav-btn');
-  var sections = document.querySelectorAll('.section');
+  var supabaseUrl = 'SUPABASE_URL_PLACEHOLDER';
+  var supabaseAnonKey = 'SUPABASE_ANON_KEY_PLACEHOLDER';
+  var supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
 
-  function showSection(id) {
-    for (var i = 0; i < sections.length; i++) { sections[i].classList.remove('active'); }
-    for (var j = 0; j < buttons.length; j++) { buttons[j].classList.remove('active'); }
-    var target = document.getElementById(id);
-    if (target) { target.classList.add('active'); }
-    var activeBtn = document.querySelector('[data-target="' + id + '"]');
-    if (activeBtn) { activeBtn.classList.add('active'); }
+  function showApp(email) {
+    document.getElementById('auth-gate').style.display = 'none';
+    document.getElementById('app-wrapper').style.display = 'block';
+    var pill = document.getElementById('userEmail');
+    if (pill) { pill.innerText = email || 'Signed in'; }
+    initDashboard();
   }
 
-  for (var b = 0; b < buttons.length; b++) {
-    (function(btn) {
-      btn.addEventListener('click', function() { showSection(btn.getAttribute('data-target')); });
-    })(buttons[b]);
-  }
-
-  function addMessage(text, cls) {
-    var box = document.getElementById('chatBox');
-    var div = document.createElement('div');
-    div.className = 'msg ' + cls;
-    div.innerText = text;
-    box.appendChild(div);
-    box.scrollTop = box.scrollHeight;
-    return div;
-  }
-
-  function askCoach() {
-    var input = document.getElementById('queryInput');
-    var query = input.value;
-    if (!query || query.trim() === '') { return; }
-    addMessage(query, 'user-msg');
-    input.value = '';
-    var loader = addMessage('Analyzing your data...', 'ai-msg');
-    var xhr = new XMLHttpRequest();
-    xhr.open('POST', '/api/chat', true);
-    xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.onreadystatechange = function() {
-      if (xhr.readyState === 4) {
-        if (loader.parentNode) { loader.parentNode.removeChild(loader); }
-        if (xhr.status === 200) {
-          try {
-            var data = JSON.parse(xhr.responseText);
-            addMessage(data.answer || 'No answer returned.', 'ai-msg');
-          } catch(e) { addMessage('Error parsing response.', 'ai-msg'); }
-        } else {
-          addMessage('Error reaching the coach API.', 'ai-msg');
-        }
-      }
-    };
-    xhr.send(JSON.stringify({ query: query }));
-  }
-
-  document.getElementById('sendBtn').addEventListener('click', askCoach);
-  document.getElementById('queryInput').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') { askCoach(); }
+  document.getElementById('googleSignInBtn').addEventListener('click', function() {
+    supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+  });
+  document.getElementById('githubSignInBtn').addEventListener('click', function() {
+    supabase.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: window.location.origin } });
+  });
+  document.getElementById('signOutBtn').addEventListener('click', function() {
+    supabase.auth.signOut().then(function() { window.location.reload(); });
   });
 
-  function getAvg(arr, key) {
-    var total = 0; var count = 0;
-    for (var i = 0; i < arr.length; i++) { var v = Number(arr[i][key]); if (!isNaN(v)) { total += v; count++; } }
-    return count > 0 ? total / count : null;
-  }
-  function getSum(arr, key) {
-    var total = 0;
-    for (var i = 0; i < arr.length; i++) { total += Number(arr[i][key]) || 0; }
-    return total;
-  }
-  function fmt(v, decimals, suffix) {
-    if (v === null || v === undefined) { return '-'; }
-    return v.toFixed(decimals || 0) + (suffix || '');
-  }
-  function setEl(id, val) { var el = document.getElementById(id); if (el) { el.innerText = val; } }
-  function chartLayout(title) {
-    return { title: title, xaxis: { title: 'Date' }, legend: { orientation: 'h', y: 1.1, x: 0.5, xanchor: 'center' }, margin: { t: 60, b: 40, l: 50, r: 20 } };
-  }
-
-  var SAMPLE = [
-    { date:'Sun', total_daily_tss:67, sleep_duration_hours:7.2, carbs_g:270, protein_g:160, calories_in:2895, readiness_score:81, hrv_ms:57, resting_hr:49, water_ml:2800, total_training_min:70, peak_w_kg_today:3.8 },
-    { date:'Sat', total_daily_tss:96, sleep_duration_hours:7.9, carbs_g:345, protein_g:159, calories_in:2950, readiness_score:85, hrv_ms:63, resting_hr:47, water_ml:2900, total_training_min:100, peak_w_kg_today:4.3 },
-    { date:'Fri', total_daily_tss:59, sleep_duration_hours:7.7, carbs_g:310, protein_g:154, calories_in:2780, readiness_score:84, hrv_ms:62, resting_hr:48, water_ml:2750, total_training_min:60, peak_w_kg_today:4.0 },
-    { date:'Thu', total_daily_tss:88, sleep_duration_hours:8.0, carbs_g:380, protein_g:162, calories_in:3110, readiness_score:86, hrv_ms:68, resting_hr:46, water_ml:3100, total_training_min:95, peak_w_kg_today:4.2 },
-    { date:'Wed', total_daily_tss:41, sleep_duration_hours:7.1, carbs_g:260, protein_g:149, calories_in:2540, readiness_score:76, hrv_ms:55, resting_hr:49, water_ml:2600, total_training_min:45, peak_w_kg_today:3.7 },
-    { date:'Tue', total_daily_tss:74, sleep_duration_hours:7.8, carbs_g:330, protein_g:158, calories_in:2890, readiness_score:83, hrv_ms:64, resting_hr:47, water_ml:2900, total_training_min:80, peak_w_kg_today:4.1 },
-    { date:'Mon', total_daily_tss:62, sleep_duration_hours:7.4, carbs_g:290, protein_g:150, calories_in:2710, readiness_score:79, hrv_ms:58, resting_hr:48, water_ml:2800, total_training_min:65, peak_w_kg_today:3.9 }
-  ];
-
-  function renderAll(rows) {
-    var last7 = rows.slice(0, 7).reverse();
-    var last14 = rows.slice(0, 14).reverse();
-    var dates=[], tss=[], sleep=[], carbs=[], protein=[], calories=[], readiness=[], hrv=[], water=[], trainMin=[];
-    for (var i = 0; i < last7.length; i++) {
-      var r = last7[i];
-      dates.push(r.date); tss.push(Number(r.total_daily_tss)||0); sleep.push(Number(r.sleep_duration_hours)||0);
-      carbs.push(Number(r.carbs_g)||0); protein.push(Number(r.protein_g)||0); calories.push(Number(r.calories_in)||0);
-      readiness.push(Number(r.readiness_score)||0); hrv.push(Number(r.hrv_ms)||0);
-      water.push(Number(r.water_ml)||0); trainMin.push(Number(r.total_training_min)||0);
+  supabase.auth.getUser().then(function(result) {
+    if (result.data && result.data.user) {
+      var email = result.data.user.email || 'Signed in';
+      showApp(email);
     }
-    var peakWkg = 0;
-    for (var k = 0; k < last14.length; k++) { var w = Number(last14[k].peak_w_kg_today)||0; if (w > peakWkg) { peakWkg = w; } }
-    setEl('weeklyTss', fmt(getSum(last7,'total_daily_tss')));
-    setEl('avgSleep', fmt(getAvg(last7,'sleep_duration_hours'),1,' h'));
-    setEl('avgCarbs', fmt(getAvg(last7,'carbs_g'),0,' g'));
-    setEl('peakWkg', fmt(peakWkg,2));
-    setEl('trainDur', fmt(getSum(last7,'total_training_min')/60,1,' h'));
-    setEl('avgTss', fmt(getAvg(last7,'total_daily_tss'),0));
-    var hard=0; for (var h=0;h<tss.length;h++){if(tss[h]>80){hard++;}} setEl('hardDays', hard);
-    setEl('avgCalories', fmt(getAvg(last7,'calories_in'),0));
-    setEl('avgProtein', fmt(getAvg(last7,'protein_g'),0,' g'));
-    setEl('avgWater', fmt(getAvg(last7,'water_ml')/1000,1,' L'));
-    setEl('avgReadiness', fmt(getAvg(last7,'readiness_score'),0));
-    setEl('avgRhr', fmt(getAvg(last7,'resting_hr'),0));
-    setEl('avgHrv', fmt(getAvg(last7,'hrv_ms'),0,' ms'));
-    var cfg={responsive:true};
-    Plotly.newPlot('overviewTraining',[{x:dates,y:tss,type:'scatter',mode:'lines+markers',fill:'tozeroy',name:'TSS'}],chartLayout('Training load (7d)'),cfg);
-    Plotly.newPlot('overviewSleep',[{x:dates,y:sleep,type:'scatter',mode:'lines+markers',fill:'tozeroy',name:'Sleep'}],chartLayout('Sleep duration (7d)'),cfg);
-    Plotly.newPlot('trainingLoad',[{x:dates,y:tss,type:'bar',name:'TSS'}],chartLayout('Daily TSS (7d)'),cfg);
-    Plotly.newPlot('trainingType',[{labels:['Endurance','Tempo','Intervals','Strength'],values:[45,20,20,15],type:'pie',hole:0.35,textinfo:'label+percent'}],{title:'Session mix',legend:{x:1,y:0.5}},cfg);
-    Plotly.newPlot('macroTrend',[{x:dates,y:carbs,type:'scatter',mode:'lines+markers',name:'Carbs'},{x:dates,y:protein,type:'scatter',mode:'lines+markers',name:'Protein'}],chartLayout('Macro trend (7d)'),cfg);
-    Plotly.newPlot('calorieTrend',[{x:dates,y:calories,type:'scatter',mode:'lines+markers',fill:'tozeroy',name:'Calories'}],chartLayout('Calories in (7d)'),cfg);
-    Plotly.newPlot('sleepDuration',[{x:dates,y:sleep,type:'bar',name:'Sleep'}],chartLayout('Sleep hours (7d)'),cfg);
-    Plotly.newPlot('recoveryTrend',[{x:dates,y:readiness,type:'scatter',mode:'lines+markers',name:'Readiness'},{x:dates,y:hrv,type:'scatter',mode:'lines+markers',name:'HRV'}],chartLayout('Recovery trend (7d)'),cfg);
-  }
+  });
 
-  var xhr2 = new XMLHttpRequest();
-  xhr2.open('GET', '/api/metrics', true);
-  xhr2.onreadystatechange = function() {
-    if (xhr2.readyState === 4) {
-      var rows = SAMPLE;
-      if (xhr2.status === 200) {
-        try { var p = JSON.parse(xhr2.responseText); if (Array.isArray(p) && p.length > 0) { rows = p; } } catch(e) {}
+  function initDashboard() {
+    var buttons = document.querySelectorAll('.nav-btn');
+    var sections = document.querySelectorAll('.section');
+    function showSection(id) {
+      for (var i = 0; i < sections.length; i++) { sections[i].classList.remove('active'); }
+      for (var j = 0; j < buttons.length; j++) { buttons[j].classList.remove('active'); }
+      var target = document.getElementById(id); if (target) { target.classList.add('active'); }
+      var activeBtn = document.querySelector('[data-target="' + id + '"]'); if (activeBtn) { activeBtn.classList.add('active'); }
+    }
+    for (var b = 0; b < buttons.length; b++) {
+      (function(btn) { btn.addEventListener('click', function() { showSection(btn.getAttribute('data-target')); }); })(buttons[b]);
+    }
+
+    function addMessage(text, cls) {
+      var box = document.getElementById('chatBox');
+      var div = document.createElement('div');
+      div.className = 'msg ' + cls;
+      div.innerText = text;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+      return div;
+    }
+    function askCoach() {
+      var input = document.getElementById('queryInput');
+      var query = input.value;
+      if (!query || query.trim() === '') { return; }
+      addMessage(query, 'user-msg');
+      input.value = '';
+      var loader = addMessage('Analyzing your data...', 'ai-msg');
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/chat', true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+          if (loader.parentNode) { loader.parentNode.removeChild(loader); }
+          if (xhr.status === 200) {
+            try { var data = JSON.parse(xhr.responseText); addMessage(data.answer || 'No answer returned.', 'ai-msg'); }
+            catch(e) { addMessage('Error parsing response.', 'ai-msg'); }
+          } else { addMessage('Error reaching the coach API.', 'ai-msg'); }
+        }
+      };
+      xhr.send(JSON.stringify({ query: query }));
+    }
+    document.getElementById('sendBtn').addEventListener('click', askCoach);
+    document.getElementById('queryInput').addEventListener('keypress', function(e) { if (e.key === 'Enter') { askCoach(); } });
+
+    function getAvg(arr, key) { var total = 0, count = 0; for (var i = 0; i < arr.length; i++) { var v = Number(arr[i][key]); if (!isNaN(v)) { total += v; count++; } } return count > 0 ? total / count : null; }
+    function getSum(arr, key) { var total = 0; for (var i = 0; i < arr.length; i++) { total += Number(arr[i][key]) || 0; } return total; }
+    function fmt(v, decimals, suffix) { if (v === null || v === undefined) { return '-'; } return v.toFixed(decimals || 0) + (suffix || ''); }
+    function setEl(id, val) { var el = document.getElementById(id); if (el) { el.innerText = val; } }
+    function chartLayout(title) { return { title: title, xaxis:{title:'Date'}, legend:{orientation:'h',y:1.1,x:0.5,xanchor:'center'}, margin:{t:60,b:40,l:50,r:20} }; }
+
+    var SAMPLE = [
+      { date:'Sun', total_daily_tss:67, sleep_duration_hours:7.2, carbs_g:270, protein_g:160, calories_in:2895, readiness_score:81, hrv_ms:57, resting_hr:49, water_ml:2800, total_training_min:70, peak_w_kg_today:3.8 },
+      { date:'Sat', total_daily_tss:96, sleep_duration_hours:7.9, carbs_g:345, protein_g:159, calories_in:2950, readiness_score:85, hrv_ms:63, resting_hr:47, water_ml:2900, total_training_min:100, peak_w_kg_today:4.3 },
+      { date:'Fri', total_daily_tss:59, sleep_duration_hours:7.7, carbs_g:310, protein_g:154, calories_in:2780, readiness_score:84, hrv_ms:62, resting_hr:48, water_ml:2750, total_training_min:60, peak_w_kg_today:4.0 },
+      { date:'Thu', total_daily_tss:88, sleep_duration_hours:8.0, carbs_g:380, protein_g:162, calories_in:3110, readiness_score:86, hrv_ms:68, resting_hr:46, water_ml:3100, total_training_min:95, peak_w_kg_today:4.2 },
+      { date:'Wed', total_daily_tss:41, sleep_duration_hours:7.1, carbs_g:260, protein_g:149, calories_in:2540, readiness_score:76, hrv_ms:55, resting_hr:49, water_ml:2600, total_training_min:45, peak_w_kg_today:3.7 },
+      { date:'Tue', total_daily_tss:74, sleep_duration_hours:7.8, carbs_g:330, protein_g:158, calories_in:2890, readiness_score:83, hrv_ms:64, resting_hr:47, water_ml:2900, total_training_min:80, peak_w_kg_today:4.1 },
+      { date:'Mon', total_daily_tss:62, sleep_duration_hours:7.4, carbs_g:290, protein_g:150, calories_in:2710, readiness_score:79, hrv_ms:58, resting_hr:48, water_ml:2800, total_training_min:65, peak_w_kg_today:3.9 }
+    ];
+
+    function renderAll(rows) {
+      var last7 = rows.slice(0,7).reverse();
+      var last14 = rows.slice(0,14).reverse();
+      var dates=[], tss=[], sleep=[], carbs=[], protein=[], calories=[], readiness=[], hrv=[], water=[], trainMin=[];
+      for (var i = 0; i < last7.length; i++) {
+        var r = last7[i];
+        dates.push(r.date); tss.push(Number(r.total_daily_tss)||0); sleep.push(Number(r.sleep_duration_hours)||0;
+        carbs.push(Number(r.carbs_g)||0); protein.push(Number(r.protein_g)||0); calories.push(Number(r.calories_in)||0;
+        readiness.push(Number(r.readiness_score)||0); hrv.push(Number(r.hrv_ms)||0);
+        water.push(Number(r.water_ml)||0); trainMin.push(Number(r.total_training_min)||0);
       }
-      renderAll(rows);
+      var peakWkg = 0; for (var k=0;k<last14.length;k++){ var w=Number(last14[k].peak_w_kg_today)||0; if(w>peakWkg){peakWkg=w;} }
+      setEl('weeklyTss', fmt(getSum(last7,'total_daily_tss')));
+      setEl('avgSleep', fmt(getAvg(last7,'sleep_duration_hours'),1,' h'));
+      setEl('avgCarbs', fmt(getAvg(last7,'carbs_g'),0,' g'));
+      setEl('peakWkg', fmt(peakWkg,2));
+      setEl('trainDur', fmt(getSum(last7,'total_training_min')/60,1,' h'));
+      setEl('avgTss', fmt(getAvg(last7,'total_daily_tss'),0));
+      var hard=0; for(var h=0;h<tss.length;h++){if(tss[h]>80){hard++;}} setEl('hardDays',hard);
+      setEl('avgCalories', fmt(getAvg(last7,'calories_in'),0));
+      setEl('avgProtein', fmt(getAvg(last7,'protein_g'),0,' g'));
+      setEl('avgWater', fmt(getAvg(last7,'water_ml')/1000,1,' L'));
+      setEl('avgReadiness', fmt(getAvg(last7,'readiness_score'),0));
+      setEl('avgRhr', fmt(getAvg(last7,'resting_hr'),0));
+      setEl('avgHrv', fmt(getAvg(last7,'hrv_ms'),0,' ms'));
+      var cfg={responsive:true};
+      Plotly.newPlot('overviewTraining',[{x:dates,y:tss,type:'scatter',mode:'lines+markers',fill:'tozeroy',name:'TSS'}],chartLayout('Training load (7d)'),cfg);
+      Plotly.newPlot('overviewSleep',[{x:dates,y:sleep,type:'scatter',mode:'lines+markers',fill:'tozeroy',name:'Sleep'}],chartLayout('Sleep duration (7d)'),cfg);
+      Plotly.newPlot('trainingLoad',[{x:dates,y:tss,type:'bar',name:'TSS'}],chartLayout('Daily TSS (7d)'),cfg);
+      Plotly.newPlot('trainingType',[{labels:['Endurance','Tempo','Intervals','Strength'],values:[45,20,20,15],type:'pie',hole:0.35,textinfo:'label+percent'}],{title:'Session mix',legend:{x:1,y:0.5}},cfg);
+      Plotly.newPlot('macroTrend',[{x:dates,y:carbs,type:'scatter',mode:'lines+markers',name:'Carbs'},{x:dates,y:protein,type:'scatter',mode:'lines+markers',name:'Protein'}],chartLayout('Macro trend (7d)'),cfg);
+      Plotly.newPlot('calorieTrend',[{x:dates,y:calories,type:'scatter',mode:'lines+markers',fill:'tozeroy',name:'Calories'}],chartLayout('Calories in (7d)'),cfg);
+      Plotly.newPlot('sleepDuration',[{x:dates,y:sleep,type:'bar',name:'Sleep'}],chartLayout('Sleep hours (7d)'),cfg);
+      Plotly.newPlot('recoveryTrend',[{x:dates,y:readiness,type:'scatter',mode:'lines+markers',name:'Readiness'},{x:dates,y:hrv,type:'scatter',mode:'lines+markers',name:'HRV'}],chartLayout('Recovery trend (7d)'),cfg);
     }
-  };
-  xhr2.send();
+
+    supabase.from('vw_daily_llm_context').select('*').order('date', { ascending: false }).limit(30).then(function(res) {
+      var rows = SAMPLE;
+      if (res.data && res.data.length > 0) { rows = res.data; }
+      renderAll(rows);
+    });
+  }
 })();
-}
 </script>
 </body>
 </html>
