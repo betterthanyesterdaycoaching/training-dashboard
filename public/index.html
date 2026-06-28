@@ -159,14 +159,27 @@ button.primary:hover{background:var(--blue2)}
     initDashboard();
   }
 
-  document.getElementById('googleSignInBtn').addEventListener('click', function() {
-    supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+
+
+
+    document.getElementById('googleSignInBtn').addEventListener('click', function() {
+    try {
+      supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } })
+        .then(function(res) {
+          if (res.error) alert('Google Error: ' + res.error.message);
+        })
+        .catch(function(err) { alert('Catch Error: ' + err); });
+    } catch(e) { alert('Setup Error: ' + e); }
   });
+  
   document.getElementById('githubSignInBtn').addEventListener('click', function() {
-    supabase.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: window.location.origin } });
-  });
-  document.getElementById('signOutBtn').addEventListener('click', function() {
-    supabase.auth.signOut().then(function() { window.location.reload(); });
+    try {
+      supabase.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: window.location.origin } })
+        .then(function(res) {
+          if (res.error) alert('GitHub Error: ' + res.error.message);
+        })
+        .catch(function(err) { alert('Catch Error: ' + err); });
+    } catch(e) { alert('Setup Error: ' + e); }
   });
 
   supabase.auth.getUser().then(function(result) {
