@@ -159,9 +159,6 @@ button.primary:hover{background:var(--blue2)}
     initDashboard();
   }
 
-
-
-
     document.getElementById('googleSignInBtn').addEventListener('click', function() {
     try {
       supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } })
