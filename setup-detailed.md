@@ -176,6 +176,98 @@ To add new database columns or views in the future, go to Supabase → SQL Edito
 | `GEMINI_API_KEY` | Google AI Studio → Get API key | `api/chat.py` |
 
 ---
+## Auth: Clerk (Free — Best Option for Personal Use)
+
+Clerk is a free authentication service that works perfectly with Vercel. It adds a proper login screen with email/password or Google login. The free tier supports up to 10,000 monthly active users — more than enough for personal use.
+
+Step 1: Create a Clerk account
+Go to clerk.com and sign up for free
+
+Click Create application
+
+Name it ai-sports-dashboard
+
+Choose sign-in methods — select Email and/or Google
+
+Click Create application
+
+Step 2: Get your Clerk keys
+In the Clerk dashboard, click API Keys
+
+Copy the Publishable key (starts with pk_live_...) — save to notepad as CLERK_PUBLISHABLE_KEY
+
+Step 3: Add Clerk to your HTML
+Open public/index.html in GitHub (pencil icon to edit) and add these two things:
+
+In the <head> section, add the Clerk script tag directly after the Plotly script line:
+
+xml
+<script
+  async
+  crossorigin="anonymous"
+  data-clerk-publishable-key="YOUR_PUBLISHABLE_KEY_HERE"
+  src="https://YOUR_FRONTEND_API.clerk.accounts.dev/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
+  type="text/javascript"
+></script>
+Replace YOUR_PUBLISHABLE_KEY_HERE with your actual key from Step 2. Clerk's dashboard shows the exact full script tag to copy — use that.
+
+Replace the opening <body> tag with this auth gate:
+
+xml
+<body>
+<div id="auth-gate" style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0f172a;">
+  <div id="sign-in"></div>
+</div>
+<div id="app-content" class="app" style="display:none;">
+  <!-- All your existing sidebar and content goes here, unchanged -->
+At the bottom of your <script> block, add the auth initialisation before loadMetrics():
+
+javascript
+window.addEventListener('load', async function() {
+  await Clerk.load();
+  if (Clerk.user) {
+    document.getElementById('auth-gate').style.display = 'none';
+    document.getElementById('app-content').style.display = 'grid';
+    loadMetrics();
+  } else {
+    Clerk.mountSignIn(document.getElementById('sign-in'));
+    Clerk.addListener(({ user }) => {
+      if (user) {
+        document.getElementById('auth-gate').style.display = 'none';
+        document.getElementById('app-content').style.display = 'grid';
+        loadMetrics();
+      }
+    });
+  }
+});
+Remove the standalone loadMetrics(); call that currently sits at the bottom of your script.
+
+Step 4: Add the sign-out button
+Inside the sidebar <aside> block at the bottom, add:
+
+xml
+<button class="nav-btn" onclick="Clerk.signOut()" style="margin-top:auto;color:#f87171;">Sign out</button>
+Step 5: Add environment variable to Vercel
+Vercel → your project → Settings → Environment Variables
+
+Add CLERK_PUBLISHABLE_KEY with your key value
+
+Redeploy
+
+Option 3: Supabase Auth (Free — Most Integrated)
+Since you already have Supabase, you can use its built-in authentication. This is the most tightly integrated option because the same database handles both your data and your login.
+
+How it works
+In Supabase → Authentication → Providers → enable Email
+
+In Supabase → Authentication → Users → click Invite user → enter your email
+
+You receive a magic link email — click it to set your password
+
+Add Supabase Auth JS to your index.html to check for a valid session before showing the dashboard
+
+The trade-off is that Supabase Auth requires slightly more JavaScript code to implement versus Clerk's simpler drop-in approach.
+---
 
 ## Troubleshooting
 
