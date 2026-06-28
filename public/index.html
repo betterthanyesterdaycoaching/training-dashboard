@@ -4,10 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>AI Sports Dashboard</title>
-<!-- Plotly -->
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
-<!-- Supabase UMD -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.1/dist/umd/supabase.js"></script>
+<!-- Supabase JS client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--bg:#f8fafc;--card:#fff;--text:#0f172a;--muted:#475569;--line:#e2e8f0;--blue:#2563eb;--blue2:#1d4ed8}
 *{box-sizing:border-box}
@@ -64,10 +63,9 @@ button.primary:hover{background:var(--blue2)}
   <div id="auth-card">
     <h2>Sign in to AI Coach</h2>
     <p>Use Google or GitHub to access your private training dashboard.</p>
-    <button class="auth-btn" id="googleSignInBtn" onclick="signIn('google')">Continue with Google</button>
-    <button class="auth-btn" id="githubSignInBtn" onclick="signIn('github')">Continue with GitHub</button>
+    <button class="auth-btn" id="googleSignInBtn">Continue with Google</button>
+    <button class="auth-btn" id="githubSignInBtn">Continue with GitHub</button>
     <div class="auth-note">Only accounts you allow in Supabase will be able to sign in.</div>
-    <div id="auth-error" style="color:#f87171;font-size:13px;margin-top:10px;"></div>
   </div>
 </div>
 
@@ -80,8 +78,12 @@ button.primary:hover{background:var(--blue2)}
   <button class="nav-btn" data-target="training">Training metrics</button>
   <button class="nav-btn" data-target="nutrition">Nutrition metrics</button>
   <button class="nav-btn" data-target="sleep">Sleep metrics</button>
-  <button class="nav-btn" data-target="chat">Coach chat</button>
-  <button class="signout-btn" id="signOutBtn" onclick="signOut()">Sign out</button>
+  
+        <button class="nav-btn" data-target="chat">Coach chat</button>
+        <button class="nav-btn" data-target="bodycomp">Body Comp</button>
+        <button class="nav-btn" data-target="races">Races</button>
+
+  <button class="signout-btn" id="signOutBtn">Sign out</button>
 </aside>
 <main class="content">
   <div class="topbar">
@@ -143,46 +145,89 @@ button.primary:hover{background:var(--blue2)}
       </div>
     </div>
   </section>
+
+    
+    <!-- Body Comp Section -->
+    <section id="bodycomp" class="section">
+        <div class="grid">
+            <div class="card span-4">
+                <div class="metric-label">Current Weight</div>
+                <div class="metric-value" id="currentWeight">--</div>
+                <div class="metric-sub">kg</div>
+            </div>
+            <div class="card span-4">
+                <div class="metric-label">Body Fat %</div>
+                <div class="metric-value" id="currentFat">--</div>
+                <div class="metric-sub">%</div>
+            </div>
+            <div class="card span-4">
+                <div class="metric-label">BMI</div>
+                <div class="metric-value" id="currentBmi">--</div>
+                <div class="metric-sub">Index</div>
+            </div>
+            <div class="card span-12">
+                <div id="bodyCompTrend" class="chart"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Races Section -->
+    <section id="races" class="section">
+        <div class="grid">
+            <div class="card span-4">
+                <div class="metric-label">Next A-Race</div>
+                <div class="metric-value" id="nextARaceName">--</div>
+                <div class="metric-sub" id="nextARaceCountdown">-- days away</div>
+            </div>
+            <div class="card span-8">
+                <h3>Race Calendar</h3>
+                <div id="racesList" style="margin-top: 10px; max-height: 250px; overflow-y: auto;"></div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Races Section -->
+    <section id="races" class="section">
+        <div class="grid">
+            <div class="card span-12"><h2>Races Dashboard</h2><p>Next A-Race, Timeline, Results</p></div>
+        </div>
+    </section>
+
 </main>
 </div>
 </div>
 
 <script>
-  // 1. Initialize Supabase
-  var supabaseUrl = 'https://ezbisbicdiwpbzvqrglb.supabase.co';
-  var supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6YmlzYmljZGl3cGJ6dnFyZ2xiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MTc0NTYsImV4cCI6MjA5ODE5MzQ1Nn0.RyBTAYnsBfygudWrCi_2Hp27QbMzofEP8r4wPcO2-UA';
+(function() {
+  var supabaseUrl = 'SUPABASE_URL_PLACEHOLDER';
+  var supabaseAnonKey = 'SUPABASE_ANON_KEY_PLACEHOLDER';
   var supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
 
-  // 2. Auth Functions (connected directly via onclick)
-  function signIn(provider) {
-    document.getElementById('auth-error').innerText = 'Redirecting to ' + provider + '...';
-    supabase.auth.signInWithOAuth({ provider: provider, options: { redirectTo: window.location.origin } })
-      .then(function(res) { if (res.error) document.getElementById('auth-error').innerText = res.error.message; })
-      .catch(function(err) { document.getElementById('auth-error').innerText = err.toString(); });
+  function showApp(email) {
+    document.getElementById('auth-gate').style.display = 'none';
+    document.getElementById('app-wrapper').style.display = 'block';
+    var pill = document.getElementById('userEmail');
+    if (pill) { pill.innerText = email || 'Signed in'; }
+    initDashboard();
   }
 
-  function signOut() {
+  document.getElementById('googleSignInBtn').addEventListener('click', function() {
+    supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+  });
+  document.getElementById('githubSignInBtn').addEventListener('click', function() {
+    supabase.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: window.location.origin } });
+  });
+  document.getElementById('signOutBtn').addEventListener('click', function() {
     supabase.auth.signOut().then(function() { window.location.reload(); });
-  }
-
-  // 3. Check Session on Load
-  window.addEventListener('DOMContentLoaded', function() {
-    supabase.auth.getUser().then(function(result) {
-      if (result.data && result.data.user) {
-        // User is logged in, show app
-        document.getElementById('auth-gate').style.display = 'none';
-        document.getElementById('app-wrapper').style.display = 'block';
-        var email = result.data.user.email || 'Signed in';
-        var pill = document.getElementById('userEmail');
-        if (pill) { pill.innerText = email; }
-        initDashboard();
-      }
-    }).catch(function(e) {
-      document.getElementById('auth-error').innerText = "Session error: " + e;
-    });
   });
 
-  // 4. The rest of the dashboard logic
+  supabase.auth.getUser().then(function(result) {
+    if (result.data && result.data.user) {
+      var email = result.data.user.email || 'Signed in';
+      showApp(email);
+    }
+  });
+
   function initDashboard() {
     var buttons = document.querySelectorAll('.nav-btn');
     var sections = document.querySelectorAll('.section');
@@ -205,7 +250,6 @@ button.primary:hover{background:var(--blue2)}
       box.scrollTop = box.scrollHeight;
       return div;
     }
-    
     function askCoach() {
       var input = document.getElementById('queryInput');
       var query = input.value;
@@ -227,7 +271,6 @@ button.primary:hover{background:var(--blue2)}
       };
       xhr.send(JSON.stringify({ query: query }));
     }
-    
     document.getElementById('sendBtn').addEventListener('click', askCoach);
     document.getElementById('queryInput').addEventListener('keypress', function(e) { if (e.key === 'Enter') { askCoach(); } });
 
@@ -253,8 +296,8 @@ button.primary:hover{background:var(--blue2)}
       var dates=[], tss=[], sleep=[], carbs=[], protein=[], calories=[], readiness=[], hrv=[], water=[], trainMin=[];
       for (var i = 0; i < last7.length; i++) {
         var r = last7[i];
-        dates.push(r.date); tss.push(Number(r.total_daily_tss)||0); sleep.push(Number(r.sleep_duration_hours)||0);
-        carbs.push(Number(r.carbs_g)||0); protein.push(Number(r.protein_g)||0); calories.push(Number(r.calories_in)||0);
+        dates.push(r.date); tss.push(Number(r.total_daily_tss)||0); sleep.push(Number(r.sleep_duration_hours)||0;
+        carbs.push(Number(r.carbs_g)||0); protein.push(Number(r.protein_g)||0); calories.push(Number(r.calories_in)||0;
         readiness.push(Number(r.readiness_score)||0); hrv.push(Number(r.hrv_ms)||0);
         water.push(Number(r.water_ml)||0); trainMin.push(Number(r.total_training_min)||0);
       }
@@ -289,6 +332,7 @@ button.primary:hover{background:var(--blue2)}
       renderAll(rows);
     });
   }
+})();
 </script>
 </body>
 </html>
