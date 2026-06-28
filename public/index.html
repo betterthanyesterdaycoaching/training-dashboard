@@ -155,8 +155,7 @@ async function askCoach() {
     loader.remove();
     var ai = document.createElement('div');
     ai.className = 'msg ai';
-    ai.innerHTML = (data.answer || 'No answer returned').replace(/
-/g, '<br>');
+    ai.innerHTML = (data.answer || 'No answer returned').split('\n').join('<br>');
     chatBox.appendChild(ai);
   } catch(e) {
     loader.innerText = 'Error reaching the coach API.';
