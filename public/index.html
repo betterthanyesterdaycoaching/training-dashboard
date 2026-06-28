@@ -212,28 +212,48 @@ button.primary:hover{background:var(--blue2)}
     initDashboard();
   }
 
-  // 1. Initialize Supabase
+    // 1. Initialize Supabase
   var supabaseUrl = 'https://ezbisbicdiwpbzvqrglb.supabase.co';
   var supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6YmlzYmljZGl3cGJ6dnFyZ2xiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MTc0NTYsImV4cCI6MjA5ODE5MzQ1Nn0.RyBTAYnsBfygudWrCi_2Hp27QbMzofEP8r4wPcO2-UA';
   var supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
 
-  // 2. Auth Functions (connected directly via onclick)
+  // 2. Auth functions used by the buttons
   function signIn(provider) {
-    document.getElementById('auth-error').innerText = 'Redirecting to ' + provider + '...';
-    supabase.auth.signInWithOAuth({ provider: provider, options: { redirectTo: window.location.origin } })
-      .then(function(res) { if (res.error) document.getElementById('auth-error').innerText = res.error.message; })
-      .catch(function(err) { document.getElementById('auth-error').innerText = err.toString(); });
+    var errorEl = document.getElementById('auth-error');
+    if (errorEl) {
+      errorEl.innerText = 'Redirecting to ' + provider + '...';
+    }
+
+    supabase.auth.signInWithOAuth({
+      provider: provider,
+      options: { redirectTo: window.location.origin }
+    })
+    .then(function (res) {
+      if (res.error && errorEl) {
+        errorEl.innerText = 'Auth error: ' + res.error.message;
+      }
+    })
+    .catch(function (err) {
+      if (errorEl) {
+        errorEl.innerText = 'Auth exception: ' + err;
+      }
+    });
   }
 
   function signOut() {
-    supabase.auth.signOut().then(function() { window.location.reload(); });
+    supabase.auth.signOut().then(function () {
+      window.location.reload();
+    }).catch(function (err) {
+      var errorEl = document.getElementById('auth-error');
+      if (errorEl) {
+        errorEl.innerText = 'Sign-out error: ' + err;
+      }
+    });
   }
 
-  supabase.auth.getUser().then(function(result) {
-    if (result.data && result.data.user) {
-      var email = result.data.user.email || 'Signed in';
-      showApp(email);
-    }
+  // 3. Check session on load
+  window.addEventListener('DOMContentLoaded', function () {
+    // existing code...
   });
 
   function initDashboard() {
