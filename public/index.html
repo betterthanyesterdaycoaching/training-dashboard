@@ -71,15 +71,33 @@ button.primary:hover{background:var(--blue2)}
 </div>
 
 <script>
+  
+  var supabaseUrl = 'https://ezbisbicdiwpbzvqrglb.supabase.co';
+  var supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6YmlzYmljZGl3cGJ6dnFyZ2xiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MTc0NTYsImV4cCI6MjA5ODE5MzQ1Nn0.RyBTAYnsBfygudWrCi_2Hp27QbMzofEP8r4wPcO2-UA';
+  var supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+  
   // Minimal version: just prove the function exists
-  function signIn(provider) {
-    const err = document.getElementById('auth-error');
-    if (err) {
-      err.innerText = 'Clicked ' + provider + ' button...';
-    }
-    // Later we can add the real Supabase call here
-    // supabase.auth.signInWithOAuth({ provider, options: { redirectTo: window.location.origin } });
+ function signIn(provider) {
+  const err = document.getElementById('auth-error');
+  if (err) {
+    err.innerText = 'Redirecting to ' + provider + '...';
   }
+
+  supabase.auth.signInWithOAuth({
+    provider: provider,
+    options: { redirectTo: window.location.origin }
+  })
+  .then(function (res) {
+    if (res.error && err) {
+      err.innerText = 'Auth error: ' + res.error.message;
+    }
+  })
+  .catch(function (errMsg) {
+    if (err) {
+      err.innerText = 'Auth exception: ' + errMsg;
+    }
+  });
+}
 
   function signOut() {
     const err = document.getElementById('auth-error');
