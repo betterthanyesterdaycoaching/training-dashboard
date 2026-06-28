@@ -6,7 +6,7 @@
 <title>AI Sports Dashboard</title>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <!-- Supabase JS client -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.1/dist/umd/supabase.js"></script>
 <style>
 :root{--bg:#f8fafc;--card:#fff;--text:#0f172a;--muted:#475569;--line:#e2e8f0;--blue:#2563eb;--blue2:#1d4ed8}
 *{box-sizing:border-box}
@@ -147,44 +147,57 @@ button.primary:hover{background:var(--blue2)}
 
 <script>
 (function() {
-  var supabaseUrl = 'https://ezbisbicdiwpbzvqrglb.supabase.co';
-  var supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6YmlzYmljZGl3cGJ6dnFyZ2xiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MTc0NTYsImV4cCI6MjA5ODE5MzQ1Nn0.RyBTAYnsBfygudWrCi_2Hp27QbMzofEP8r4wPcO2-UA';
-  var supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+  // Wait for the page to fully load before attaching events
+  window.addEventListener('DOMContentLoaded', function() {
+    
+    if (typeof window.supabase === 'undefined' || typeof window.supabase.createClient === 'undefined') {
+      document.getElementById('auth-card').innerHTML += '<p style="color:red;margin-top:10px;">Error: Supabase library failed to load.</p>';
+      return;
+    }
 
-  function showApp(email) {
-    document.getElementById('auth-gate').style.display = 'none';
-    document.getElementById('app-wrapper').style.display = 'block';
-    var pill = document.getElementById('userEmail');
-    if (pill) { pill.innerText = email || 'Signed in'; }
-    initDashboard();
-  }
+    var supabaseUrl = 'https://ezbisbicdiwpbzvqrglb.supabase.co';
+    var supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6YmlzYmljZGl3cGJ6dnFyZ2xiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MTc0NTYsImV4cCI6MjA5ODE5MzQ1Nn0.RyBTAYnsBfygudWrCi_2Hp27QbMzofEP8r4wPcO2-UA';
+    
+    try {
+      var supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+    } catch(e) {
+      document.getElementById('auth-card').innerHTML += '<p style="color:red;margin-top:10px;">Error initializing client: ' + e + '</p>';
+      return;
+    }
+
+    function showApp(email) {
+      document.getElementById('auth-gate').style.display = 'none';
+      document.getElementById('app-wrapper').style.display = 'block';
+      var pill = document.getElementById('userEmail');
+      if (pill) { pill.innerText = email || 'Signed in'; }
+      initDashboard();
+    }
 
     document.getElementById('googleSignInBtn').addEventListener('click', function() {
-    try {
       supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } })
-        .then(function(res) {
-          if (res.error) alert('Google Error: ' + res.error.message);
-        })
-        .catch(function(err) { alert('Catch Error: ' + err); });
-    } catch(e) { alert('Setup Error: ' + e); }
-  });
-  
-  document.getElementById('githubSignInBtn').addEventListener('click', function() {
-    try {
+        .then(function(res) { if (res.error) alert('Error: ' + res.error.message); })
+        .catch(function(err) { alert('Catch: ' + err); });
+    });
+    
+    document.getElementById('githubSignInBtn').addEventListener('click', function() {
       supabase.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: window.location.origin } })
-        .then(function(res) {
-          if (res.error) alert('GitHub Error: ' + res.error.message);
-        })
-        .catch(function(err) { alert('Catch Error: ' + err); });
-    } catch(e) { alert('Setup Error: ' + e); }
-  });
+        .then(function(res) { if (res.error) alert('Error: ' + res.error.message); })
+        .catch(function(err) { alert('Catch: ' + err); });
+    });
+    
+    document.getElementById('signOutBtn').addEventListener('click', function() {
+      supabase.auth.signOut().then(function() { window.location.reload(); });
+    });
 
-  supabase.auth.getUser().then(function(result) {
-    if (result.data && result.data.user) {
-      var email = result.data.user.email || 'Signed in';
-      showApp(email);
-    }
-  });
+    supabase.auth.getUser().then(function(result) {
+      if (result.data && result.data.user) {
+        var email = result.data.user.email || 'Signed in';
+        showApp(email);
+      }
+    });
+
+// Keep your existing initDashboard() function here...
+
 
   function initDashboard() {
     var buttons = document.querySelectorAll('.nav-btn');
