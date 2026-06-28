@@ -1,0 +1,10 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "/public/index.html" }
+  ],
+  "functions": {
+    "api/*.py": {
+      "runtime": "@vercel/python@4.1.0"
+    }
+  }
+}
