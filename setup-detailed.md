@@ -266,7 +266,6 @@ You receive a magic link email — click it to set your password
 
 Add Supabase Auth JS to your index.html to check for a valid session before showing the dashboard
 
-The trade-off is that Supabase Auth requires slightly more JavaScript code to implement versus Clerk's simpler drop-in approach.
 ---
 
 ## Troubleshooting
