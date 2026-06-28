@@ -63,9 +63,10 @@ button.primary:hover{background:var(--blue2)}
   <div id="auth-card">
     <h2>Sign in to AI Coach</h2>
     <p>Use Google or GitHub to access your private training dashboard.</p>
-    <button class="auth-btn" id="googleSignInBtn">Continue with Google</button>
-    <button class="auth-btn" id="githubSignInBtn">Continue with GitHub</button>
+    <button class="auth-btn" id="googleSignInBtn" onclick="signIn('google')">Continue with Google</button>
+    <button class="auth-btn" id="githubSignInBtn" onclick="signIn('github')">Continue with GitHub</button>
     <div class="auth-note">Only accounts you allow in Supabase will be able to sign in.</div>
+    <div id="auth-error" style="color:#f87171;font-size:13px;margin-top:10px;"></div>
   </div>
 </div>
 
@@ -199,9 +200,9 @@ button.primary:hover{background:var(--blue2)}
 
 <script>
 (function() {
-  var supabaseUrl = 'https://ezbisbicdiwpbzvqrglb.supabase.co';
-  var supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6YmlzYmljZGl3cGJ6dnFyZ2xiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MTc0NTYsImV4cCI6MjA5ODE5MzQ1Nn0.RyBTAYnsBfygudWrCi_2Hp27QbMzofEP8r4wPcO2-UA';
-  var supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+  var supabaseUrl = 'SUPABASE_URL_PLACEHOLDER';
+  var supabaseAnonKey = 'SUPABASE_ANON_KEY_PLACEHOLDER';
+  
 
   function showApp(email) {
     document.getElementById('auth-gate').style.display = 'none';
@@ -211,15 +212,22 @@ button.primary:hover{background:var(--blue2)}
     initDashboard();
   }
 
-  document.getElementById('googleSignInBtn').addEventListener('click', function() {
-    supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
-  });
-  document.getElementById('githubSignInBtn').addEventListener('click', function() {
-    supabase.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: window.location.origin } });
-  });
-  document.getElementById('signOutBtn').addEventListener('click', function() {
+  // 1. Initialize Supabase
+  var supabaseUrl = 'https://ezbisbicdiwpbzvqrglb.supabase.co';
+  var supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6YmlzYmljZGl3cGJ6dnFyZ2xiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MTc0NTYsImV4cCI6MjA5ODE5MzQ1Nn0.RyBTAYnsBfygudWrCi_2Hp27QbMzofEP8r4wPcO2-UA';
+  var supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+
+  // 2. Auth Functions (connected directly via onclick)
+  function signIn(provider) {
+    document.getElementById('auth-error').innerText = 'Redirecting to ' + provider + '...';
+    supabase.auth.signInWithOAuth({ provider: provider, options: { redirectTo: window.location.origin } })
+      .then(function(res) { if (res.error) document.getElementById('auth-error').innerText = res.error.message; })
+      .catch(function(err) { document.getElementById('auth-error').innerText = err.toString(); });
+  }
+
+  function signOut() {
     supabase.auth.signOut().then(function() { window.location.reload(); });
-  });
+  }
 
   supabase.auth.getUser().then(function(result) {
     if (result.data && result.data.user) {
