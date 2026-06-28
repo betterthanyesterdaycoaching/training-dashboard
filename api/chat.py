@@ -24,7 +24,7 @@ class handler(BaseHTTPRequestHandler):
         if gemini_api_key:
             try:
                 prompt = f"You are an elite endurance coach and sports nutritionist. Use the athlete data below to answer clearly and practically with concise actions. Athlete data: {context_data}. User question: {user_query}"
-                gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_api_key}"
+                gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key={gemini_api_key}"
                 payload = json.dumps({
                     'contents': [{'parts': [{'text': prompt}]}],
                     'generationConfig': {'temperature': 0.2}
