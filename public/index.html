@@ -70,6 +70,26 @@ button.primary:hover{background:var(--blue2)}
   </div>
 </div>
 
+<script>
+  // Minimal version: just prove the function exists
+  function signIn(provider) {
+    const err = document.getElementById('auth-error');
+    if (err) {
+      err.innerText = 'Clicked ' + provider + ' button...';
+    }
+    // Later we can add the real Supabase call here
+    // supabase.auth.signInWithOAuth({ provider, options: { redirectTo: window.location.origin } });
+  }
+
+  function signOut() {
+    const err = document.getElementById('auth-error');
+    if (err) {
+      err.innerText = 'Signing out...';
+    }
+    // Later we can wire supabase.auth.signOut() here
+  }
+</script>
+  
 <!-- APP WRAPPER -->
 <div id="app-wrapper">
 <div class="app">
